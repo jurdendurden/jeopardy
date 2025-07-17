@@ -15,6 +15,12 @@ class JeopardyGame {
         this.isMultiplayer = false;
         this.gameStarted = false;
         
+        // Timer and difficulty support
+        this.difficulty = "medium";
+        this.timerSeconds = 10;
+        this.currentTimer = null;
+        this.timeLeft = 0;
+        
         this.setupKeyboardNavigation();
         this.setupSoundEffects();
         this.initializePlayerSetup();
@@ -37,6 +43,20 @@ class JeopardyGame {
                 btn.classList.add('active');
                 // Update player inputs
                 this.updatePlayerInputs(parseInt(btn.dataset.count));
+            });
+        });
+
+        // Difficulty selector
+        const difficultyButtons = document.querySelectorAll('.difficulty-btn');
+        difficultyButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                // Remove active class from all buttons
+                difficultyButtons.forEach(b => b.classList.remove('active'));
+                // Add active class to clicked button
+                btn.classList.add('active');
+                // Store difficulty and timer
+                this.difficulty = btn.dataset.difficulty;
+                this.timerSeconds = parseInt(btn.dataset.time);
             });
         });
 
@@ -72,8 +92,8 @@ class JeopardyGame {
         const playerNames = Array.from(inputs).map(input => input.value.trim());
         
         try {
-            // Set up players
-            await this.setupPlayers(playerNames);
+            // Set up players with difficulty
+            await this.setupPlayers(playerNames, this.difficulty);
             
             // Hide setup modal
             this.hidePlayerSetupModal();
@@ -88,14 +108,17 @@ class JeopardyGame {
         }
     }
 
-    async setupPlayers(playerNames) {
+    async setupPlayers(playerNames, difficulty) {
         try {
             const response = await fetch('/api/game/setup', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ players: playerNames })
+                body: JSON.stringify({ 
+                    players: playerNames,
+                    difficulty: difficulty
+                })
             });
             
             if (!response.ok) {
@@ -106,6 +129,8 @@ class JeopardyGame {
             this.players = data.players;
             this.currentPlayer = data.current_player;
             this.isMultiplayer = data.is_multiplayer;
+            this.difficulty = data.difficulty;
+            this.timerSeconds = data.timer_seconds;
             
             // Update UI based on multiplayer mode
             this.updateUIForMultiplayer();
@@ -134,6 +159,15 @@ class JeopardyGame {
         document.querySelectorAll('.player-count-btn:not([data-count="1"])').forEach(btn => {
             btn.classList.remove('active');
         });
+        
+        // Reset to medium difficulty
+        document.querySelector('.difficulty-btn[data-difficulty="medium"]').classList.add('active');
+        document.querySelectorAll('.difficulty-btn:not([data-difficulty="medium"])').forEach(btn => {
+            btn.classList.remove('active');
+        });
+        this.difficulty = "medium";
+        this.timerSeconds = 10;
+        
         this.updatePlayerInputs(1);
     }
 
@@ -181,13 +215,69 @@ class JeopardyGame {
         }
     }
 
+    startTimer() {
+        if (this.currentTimer) {
+            clearInterval(this.currentTimer);
+        }
+        
+        this.timeLeft = this.timerSeconds;
+        this.updateTimerDisplay();
+        
+        this.currentTimer = setInterval(() => {
+            this.timeLeft--;
+            this.updateTimerDisplay();
+            
+            if (this.timeLeft <= 0) {
+                this.handleTimerExpired();
+            }
+        }, 1000);
+    }
+
+    stopTimer() {
+        if (this.currentTimer) {
+            clearInterval(this.currentTimer);
+            this.currentTimer = null;
+        }
+    }
+
+    updateTimerDisplay() {
+        const timerDisplay = document.getElementById('timerDisplay');
+        const timerText = document.getElementById('timerText');
+        
+        if (timerText) {
+            timerText.textContent = this.timeLeft;
+        }
+        
+        if (timerDisplay) {
+            // Remove existing classes
+            timerDisplay.classList.remove('warning', 'danger');
+            
+            // Add appropriate class based on time left
+            if (this.timeLeft <= 2) {
+                timerDisplay.classList.add('danger');
+            } else if (this.timeLeft <= 5) {
+                timerDisplay.classList.add('warning');
+            }
+        }
+    }
+
+    handleTimerExpired() {
+        this.stopTimer();
+        this.sounds.timeUp();
+        
+        // Automatically submit wrong answer
+        this.submitAnswer('', true); // Pass true to indicate timeout
+    }
+
     setupSoundEffects() {
         // Create audio context for sound effects (optional)
         this.sounds = {
             select: this.createTone(800, 0.1),
             correct: this.createTone(1000, 0.3),
             incorrect: this.createTone(300, 0.3),
-            hover: this.createTone(600, 0.05)
+            hover: this.createTone(600, 0.05),
+            buzzer: this.createBuzzer(),
+            timeUp: this.createTimeUpSound()
         };
     }
 
@@ -209,6 +299,60 @@ class JeopardyGame {
                 
                 oscillator.start(audioContext.currentTime);
                 oscillator.stop(audioContext.currentTime + duration);
+            } catch (e) {
+                // Silently fail if audio is not supported
+            }
+        };
+    }
+
+    createBuzzer() {
+        return () => {
+            try {
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+                
+                oscillator.frequency.value = 400;
+                oscillator.type = 'sawtooth';
+                
+                gainNode.gain.setValueAtTime(0.2, audioContext.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+                
+                oscillator.start(audioContext.currentTime);
+                oscillator.stop(audioContext.currentTime + 0.5);
+            } catch (e) {
+                // Silently fail if audio is not supported
+            }
+        };
+    }
+
+    createTimeUpSound() {
+        return () => {
+            try {
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                
+                // Create a series of descending tones
+                const frequencies = [800, 600, 400, 200];
+                frequencies.forEach((freq, index) => {
+                    const oscillator = audioContext.createOscillator();
+                    const gainNode = audioContext.createGain();
+                    
+                    oscillator.connect(gainNode);
+                    gainNode.connect(audioContext.destination);
+                    
+                    oscillator.frequency.value = freq;
+                    oscillator.type = 'square';
+                    
+                    const startTime = audioContext.currentTime + (index * 0.1);
+                    gainNode.gain.setValueAtTime(0.15, startTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, startTime + 0.15);
+                    
+                    oscillator.start(startTime);
+                    oscillator.stop(startTime + 0.15);
+                });
             } catch (e) {
                 // Silently fail if audio is not supported
             }
@@ -380,6 +524,11 @@ class JeopardyGame {
                 this.currentPlayer = data.current_player;
             }
             
+            // Update timer settings if provided
+            if (data.timer_seconds) {
+                this.timerSeconds = data.timer_seconds;
+            }
+            
             this.showQuestionModal();
         } catch (error) {
             console.error('Error selecting question:', error);
@@ -389,13 +538,16 @@ class JeopardyGame {
         }
     }
 
-    async submitAnswer(answer) {
-        if (this.isLoading || !answer.trim()) return;
+    async submitAnswer(answer, isTimeout = false) {
+        if (this.isLoading || (!answer.trim() && !isTimeout)) return;
+
+        // Stop the timer
+        this.stopTimer();
 
         this.setLoading(true);
         const submitBtn = document.getElementById('submitAnswer');
         const originalText = submitBtn.textContent;
-        submitBtn.textContent = 'Submitting...';
+        submitBtn.textContent = isTimeout ? 'Time Up!' : 'Submitting...';
         submitBtn.disabled = true;
 
         try {
@@ -404,7 +556,7 @@ class JeopardyGame {
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ answer: answer.trim() })
+                body: JSON.stringify({ answer: answer.trim() || (isTimeout ? '' : answer.trim()) })
             });
             
             if (!response.ok) {
@@ -421,7 +573,7 @@ class JeopardyGame {
             }
             
             // Show result feedback
-            this.showAnswerFeedback(data.correct, answer);
+            this.showAnswerFeedback(data.correct, answer, isTimeout);
             
             // Update game state
             this.score = data.score;
@@ -455,18 +607,37 @@ class JeopardyGame {
         }
     }
 
-    showAnswerFeedback(isCorrect, userAnswer) {
+    showAnswerFeedback(isCorrect, userAnswer, isTimeout = false) {
         const feedbackDiv = document.createElement('div');
         feedbackDiv.className = `answer-feedback alert ${isCorrect ? 'alert-success' : 'alert-danger'} mt-3`;
+        
+        let feedbackTitle = '';
+        let feedbackContent = '';
+        
+        if (isTimeout) {
+            feedbackTitle = 'Time Up!';
+            feedbackContent = `
+                <div class="small">
+                    Time ran out before you could answer.<br>
+                    Correct answer: "${this.currentQuestion.answer}"
+                </div>
+            `;
+        } else {
+            feedbackTitle = isCorrect ? 'Correct!' : 'Incorrect!';
+            feedbackContent = `
+                <div class="small">
+                    Your answer: "${userAnswer}"
+                    ${!isCorrect ? `<br>Correct answer: "${this.currentQuestion.answer}"` : ''}
+                </div>
+            `;
+        }
+        
         feedbackDiv.innerHTML = `
             <div class="d-flex align-items-center">
-                <i class="fas ${isCorrect ? 'fa-check-circle' : 'fa-times-circle'} me-2"></i>
+                <i class="fas ${isTimeout ? 'fa-clock' : (isCorrect ? 'fa-check-circle' : 'fa-times-circle')} me-2"></i>
                 <div>
-                    <strong>${isCorrect ? 'Correct!' : 'Incorrect!'}</strong>
-                    <div class="small">
-                        Your answer: "${userAnswer}"
-                        ${!isCorrect ? `<br>Correct answer: "${this.currentQuestion.answer}"` : ''}
-                    </div>
+                    <strong>${feedbackTitle}</strong>
+                    ${feedbackContent}
                 </div>
             </div>
         `;
@@ -671,9 +842,12 @@ class JeopardyGame {
         
         modal.show();
         
-        // Focus on input after modal is shown
+        // Focus on input after modal is shown and start timer
         setTimeout(() => {
             answerInput.focus();
+            // Play buzzer sound and start timer
+            this.sounds.buzzer();
+            this.startTimer();
         }, 300);
     }
 
@@ -682,6 +856,7 @@ class JeopardyGame {
         if (modal) {
             modal.hide();
         }
+        this.stopTimer();
         this.currentQuestion = null;
     }
 }

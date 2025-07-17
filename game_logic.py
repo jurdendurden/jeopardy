@@ -14,10 +14,23 @@ class GameState:
         self.current_player_index = 0
         self.is_multiplayer = False
         
+        # Difficulty and timer support
+        self.difficulty = "medium"  # Default difficulty
+        self.timer_seconds = 10  # Default timer
+        
         self.load_questions()
 
-    def setup_players(self, player_names):
+    def setup_players(self, player_names, difficulty="medium"):
         """Set up players for multiplayer game"""
+        # Set difficulty and timer
+        self.difficulty = difficulty
+        difficulty_times = {
+            "easy": 15,
+            "medium": 10,
+            "hard": 5
+        }
+        self.timer_seconds = difficulty_times.get(difficulty, 10)
+        
         if not player_names or len(player_names) == 0:
             # Single player mode
             self.players = [{"name": "Player", "score": 0}]
@@ -112,7 +125,9 @@ class GameState:
             return {
                 "question": self.current_question["question"],
                 "value": value,
-                "current_player": self.get_current_player()
+                "current_player": self.get_current_player(),
+                "timer_seconds": self.timer_seconds,
+                "difficulty": self.difficulty
             }
         return {"error": "Question not found"}
 
@@ -155,5 +170,7 @@ class GameState:
             "answered_questions": list(self.answered_questions),
             "players": self.players,
             "current_player": self.get_current_player(),
-            "is_multiplayer": self.is_multiplayer
+            "is_multiplayer": self.is_multiplayer,
+            "difficulty": self.difficulty,
+            "timer_seconds": self.timer_seconds
         } 

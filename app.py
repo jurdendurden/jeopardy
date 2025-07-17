@@ -14,14 +14,17 @@ def setup_players():
     """Set up players for the game"""
     data = request.json
     player_names = data.get('players', [])
+    difficulty = data.get('difficulty', 'medium')
     
     try:
-        game_state.setup_players(player_names)
+        game_state.setup_players(player_names, difficulty)
         return jsonify({
             "success": True,
             "players": game_state.players,
             "is_multiplayer": game_state.is_multiplayer,
-            "current_player": game_state.get_current_player()
+            "current_player": game_state.get_current_player(),
+            "difficulty": game_state.difficulty,
+            "timer_seconds": game_state.timer_seconds
         })
     except Exception as e:
         return jsonify({"error": str(e)}), 400
