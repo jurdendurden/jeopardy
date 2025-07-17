@@ -1,5 +1,12 @@
 @import url('https://fonts.googleapis.com/css2?family=Korinna:wght@400;700&family=Roboto:wght@400;700&display=swap');
 
+@font-face {
+    font-family: 'Gyparody';
+    src: url('/static/fonts/gyparody hv.ttf') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+}
+
 :root {
     --jeopardy-blue: #060CE9;
     --jeopardy-dark-blue: #000080;
@@ -31,7 +38,7 @@ body {
 }
 
 h1.display-4 {
-    font-family: 'Korinna', serif;
+    font-family: 'Gyparody', 'Korinna', serif;
     font-weight: 700;
     text-shadow: var(--text-shadow);
     background: linear-gradient(45deg, var(--jeopardy-gold), #FFA500);
@@ -94,8 +101,9 @@ h1.display-4 {
     background: linear-gradient(135deg, var(--jeopardy-dark-blue), #000060);
     padding: 20px 10px;
     text-align: center;
+    font-family: 'Gyparody', 'Korinna', serif;
     font-weight: 700;
-    font-size: 1.1rem;
+    font-size: 2.0rem;
     border-radius: 8px;
     min-height: 80px;
     display: flex;
@@ -193,7 +201,7 @@ h1.display-4 {
 }
 
 .modal-title {
-    font-family: 'Korinna', serif;
+    font-family: 'Gyparody', 'Korinna', serif;
     font-weight: 700;
     font-size: 1.5rem;
     text-shadow: var(--text-shadow);
@@ -375,7 +383,7 @@ h1.display-4 {
 
 .game-complete h2 {
     color: var(--jeopardy-gold);
-    font-family: 'Korinna', serif;
+    font-family: 'Gyparody', 'Korinna', serif;
     text-shadow: var(--text-shadow);
     margin-bottom: 20px;
 }

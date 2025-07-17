@@ -21,9 +21,354 @@ class JeopardyGame {
         this.currentTimer = null;
         this.timeLeft = 0;
         
+        // Voice recognition support
+        this.speechRecognition = null;
+        this.voiceEnabled = false;
+        this.isListening = false;
+        this.playerVoiceProfiles = new Map(); // Store voice characteristics for each player
+        this.currentVoiceInput = '';
+        
+        this.initializeVoiceRecognition();
+        
         this.setupKeyboardNavigation();
         this.setupSoundEffects();
         this.initializePlayerSetup();
+    }
+
+    initializeVoiceRecognition() {
+        console.log('Initializing voice recognition...');
+        
+        // Check if speech recognition is supported
+        if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            this.speechRecognition = new SpeechRecognition();
+            
+            this.speechRecognition.continuous = false;
+            this.speechRecognition.interimResults = false;
+            this.speechRecognition.lang = 'en-US';
+            this.speechRecognition.maxAlternatives = 1;
+            
+            this.speechRecognition.onstart = () => {
+                console.log('Speech recognition started');
+            };
+            
+            this.speechRecognition.onresult = (event) => {
+                console.log('Speech recognition result:', event.results[0][0]);
+                const result = event.results[0][0].transcript;
+                this.handleVoiceInput(result, event.results[0][0].confidence);
+            };
+            
+            this.speechRecognition.onerror = (event) => {
+                console.error('Speech recognition error:', event.error, event);
+                this.showVoiceError(`Speech recognition error: ${event.error}`);
+                this.stopVoiceRecognition();
+            };
+            
+            this.speechRecognition.onend = () => {
+                console.log('Speech recognition ended');
+                this.isListening = false;
+                this.updateVoiceButton();
+                this.hideVoiceListening();
+            };
+            
+            this.voiceEnabled = true;
+            console.log('Voice recognition initialized successfully');
+        } else {
+            console.warn('Speech recognition not supported in this browser');
+            this.voiceEnabled = false;
+        }
+    }
+
+    async createVoiceProfile(playerName) {
+        // Create a simple voice profile based on speech characteristics
+        // This is a simplified approach - in production, you'd use more sophisticated voice analysis
+        return new Promise((resolve) => {
+            if (!this.voiceEnabled) {
+                resolve(null);
+                return;
+            }
+            
+            // Store basic profile information
+            const profile = {
+                playerName: playerName,
+                created: Date.now(),
+                samples: []
+            };
+            
+            this.playerVoiceProfiles.set(playerName, profile);
+            resolve(profile);
+        });
+    }
+
+    async verifyVoiceMatch(playerName, confidence) {
+        // Simplified voice verification - in production, this would analyze audio characteristics
+        // For now, we'll use confidence level and timing patterns
+        const profile = this.playerVoiceProfiles.get(playerName);
+        
+        if (!profile) {
+            // First time speaking, create profile
+            await this.createVoiceProfile(playerName);
+            return { verified: true, confidence: confidence };
+        }
+        
+        // Add sample to profile
+        profile.samples.push({
+            timestamp: Date.now(),
+            confidence: confidence
+        });
+        
+        // Keep only last 10 samples
+        if (profile.samples.length > 10) {
+            profile.samples = profile.samples.slice(-10);
+        }
+        
+        // Simple verification: check if confidence is consistent
+        const avgConfidence = profile.samples.reduce((sum, sample) => sum + sample.confidence, 0) / profile.samples.length;
+        const confidenceVariance = profile.samples.reduce((sum, sample) => sum + Math.pow(sample.confidence - avgConfidence, 2), 0) / profile.samples.length;
+        
+        // If confidence varies too much, it might be a different person
+        const isVerified = confidenceVariance < 0.1 && confidence > 0.7;
+        
+        return {
+            verified: isVerified,
+            confidence: confidence,
+            avgConfidence: avgConfidence,
+            variance: confidenceVariance
+        };
+    }
+
+    async handleVoiceInput(transcript, confidence) {
+        if (!this.currentPlayer) return;
+        
+        // Verify voice matches the current player
+        const verification = await this.verifyVoiceMatch(this.currentPlayer.name, confidence);
+        
+        if (!verification.verified) {
+            this.showVoiceError('Voice verification failed. Please ensure the same player is speaking.');
+            return;
+        }
+        
+        // Update the answer input with the transcript
+        const answerInput = document.getElementById('answerInput');
+        if (answerInput) {
+            answerInput.value = transcript;
+            this.currentVoiceInput = transcript;
+            
+            // Show voice feedback
+            this.showVoiceFeedback(transcript, verification.confidence);
+            
+            // Enable submit button
+            const submitBtn = document.getElementById('submitAnswer');
+            if (submitBtn) {
+                submitBtn.disabled = false;
+            }
+        }
+    }
+
+    async startVoiceRecognition() {
+        if (!this.voiceEnabled || this.isListening || !this.speechRecognition) {
+            console.log('Voice recognition not available:', {
+                voiceEnabled: this.voiceEnabled,
+                isListening: this.isListening,
+                speechRecognition: !!this.speechRecognition
+            });
+            return;
+        }
+        
+        try {
+            console.log('Starting voice recognition...');
+            
+            // Request microphone permission first
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                // Stop the stream immediately, we just needed permission
+                stream.getTracks().forEach(track => track.stop());
+                console.log('Microphone permission granted');
+            } catch (permissionError) {
+                console.error('Microphone permission denied:', permissionError);
+                this.showVoiceError('Microphone permission is required for voice input. Please allow microphone access and try again.');
+                return;
+            }
+            
+            this.isListening = true;
+            this.currentVoiceInput = '';
+            this.speechRecognition.start();
+            this.updateVoiceButton();
+            
+            // Show listening indicator
+            this.showVoiceListening();
+            console.log('Voice recognition started successfully');
+            
+        } catch (error) {
+            console.error('Error starting voice recognition:', error);
+            this.isListening = false;
+            this.updateVoiceButton();
+            this.showVoiceError('Failed to start voice recognition. Please try again.');
+        }
+    }
+
+    stopVoiceRecognition() {
+        if (!this.voiceEnabled || !this.isListening || !this.speechRecognition) return;
+        
+        try {
+            this.speechRecognition.stop();
+            this.isListening = false;
+            this.updateVoiceButton();
+            this.hideVoiceListening();
+        } catch (error) {
+            console.error('Error stopping voice recognition:', error);
+        }
+    }
+
+    updateVoiceButton() {
+        const voiceBtn = document.getElementById('voiceBtn');
+        if (!voiceBtn) return;
+        
+        if (this.isListening) {
+            voiceBtn.innerHTML = '<i class="fas fa-microphone-slash"></i> Stop Listening';
+            voiceBtn.classList.add('btn-danger');
+            voiceBtn.classList.remove('btn-success');
+        } else {
+            voiceBtn.innerHTML = '<i class="fas fa-microphone"></i> Speak Answer';
+            voiceBtn.classList.add('btn-success');
+            voiceBtn.classList.remove('btn-danger');
+        }
+    }
+
+    showVoiceListening() {
+        const modalBody = document.querySelector('.modal-body');
+        let listeningDiv = document.getElementById('voiceListening');
+        
+        if (!listeningDiv) {
+            listeningDiv = document.createElement('div');
+            listeningDiv.id = 'voiceListening';
+            listeningDiv.className = 'voice-listening alert alert-info mt-2';
+            modalBody.appendChild(listeningDiv);
+        }
+        
+        listeningDiv.innerHTML = `
+            <div class="d-flex align-items-center">
+                <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+                <span>Listening... Speak your answer now</span>
+            </div>
+        `;
+        listeningDiv.style.display = 'block';
+    }
+
+    hideVoiceListening() {
+        const listeningDiv = document.getElementById('voiceListening');
+        if (listeningDiv) {
+            listeningDiv.style.display = 'none';
+        }
+    }
+
+    showVoiceFeedback(transcript, confidence) {
+        const modalBody = document.querySelector('.modal-body');
+        let feedbackDiv = document.getElementById('voiceFeedback');
+        
+        if (!feedbackDiv) {
+            feedbackDiv = document.createElement('div');
+            feedbackDiv.id = 'voiceFeedback';
+            feedbackDiv.className = 'voice-feedback alert alert-success mt-2';
+            modalBody.appendChild(feedbackDiv);
+        }
+        
+        feedbackDiv.innerHTML = `
+            <div class="d-flex align-items-center">
+                <i class="fas fa-check-circle me-2"></i>
+                <div>
+                    <strong>Voice recognized:</strong> "${transcript}"<br>
+                    <small>Confidence: ${Math.round(confidence * 100)}%</small>
+                </div>
+            </div>
+        `;
+        feedbackDiv.style.display = 'block';
+        
+        // Hide after 3 seconds
+        setTimeout(() => {
+            if (feedbackDiv) {
+                feedbackDiv.style.display = 'none';
+            }
+        }, 3000);
+    }
+
+    showVoiceError(message) {
+        const modalBody = document.querySelector('.modal-body');
+        let errorDiv = document.getElementById('voiceError');
+        
+        if (!errorDiv) {
+            errorDiv = document.createElement('div');
+            errorDiv.id = 'voiceError';
+            errorDiv.className = 'voice-error alert alert-danger mt-2';
+            modalBody.appendChild(errorDiv);
+        }
+        
+        errorDiv.innerHTML = `
+            <div class="d-flex align-items-center">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                <span>${message}</span>
+            </div>
+        `;
+        errorDiv.style.display = 'block';
+        
+        // Hide after 5 seconds
+        setTimeout(() => {
+            if (errorDiv) {
+                errorDiv.style.display = 'none';
+            }
+        }, 5000);
+    }
+
+    setupVoiceButton() {
+        const voiceBtn = document.getElementById('voiceBtn');
+        if (!voiceBtn) {
+            console.log('Voice button not found in DOM');
+            return;
+        }
+        
+        console.log('Setting up voice button, voiceEnabled:', this.voiceEnabled);
+        
+        // Show/hide voice button based on support
+        if (this.voiceEnabled) {
+            voiceBtn.style.display = 'inline-block';
+            this.updateVoiceButton();
+            
+            // Remove existing event listeners to prevent duplicates
+            if (this.voiceButtonClickHandler) {
+                voiceBtn.removeEventListener('click', this.voiceButtonClickHandler);
+            }
+            
+            // Create bound handler for proper this context
+            this.voiceButtonClickHandler = () => {
+                console.log('Voice button clicked, isListening:', this.isListening);
+                if (this.isListening) {
+                    this.stopVoiceRecognition();
+                } else {
+                    this.startVoiceRecognition();
+                }
+            };
+            
+            // Add event listener
+            voiceBtn.addEventListener('click', this.voiceButtonClickHandler);
+            console.log('Voice button event listener added');
+        } else {
+            voiceBtn.style.display = 'none';
+            console.log('Voice button hidden (voice not enabled)');
+        }
+    }
+
+    cleanupVoiceElements() {
+        // Clean up voice-related UI elements
+        const voiceElements = ['voiceListening', 'voiceFeedback', 'voiceError'];
+        voiceElements.forEach(id => {
+            const element = document.getElementById(id);
+            if (element) {
+                element.remove();
+            }
+        });
+        
+        // Stop voice recognition
+        this.stopVoiceRecognition();
     }
 
     initializePlayerSetup() {
@@ -601,8 +946,9 @@ class JeopardyGame {
     async submitAnswer(answer, isTimeout = false) {
         if (this.isLoading || (!answer.trim() && !isTimeout)) return;
 
-        // Stop the timer
+        // Stop the timer and voice recognition
         this.stopTimer();
+        this.stopVoiceRecognition();
 
         this.setLoading(true);
         const submitBtn = document.getElementById('submitAnswer');
@@ -886,6 +1232,9 @@ class JeopardyGame {
             existingFeedback.remove();
         }
         
+        // Clean up voice elements
+        this.cleanupVoiceElements();
+        
         answerInput.disabled = false;
         submitBtn.disabled = false;
         answerInput.value = '';
@@ -909,6 +1258,9 @@ class JeopardyGame {
             this.sounds.buzzer();
             this.startTimer();
             this.sounds.thinkingMusic();
+            
+            // Set up voice button if available
+            this.setupVoiceButton();
         }, 300);
     }
 
@@ -919,6 +1271,7 @@ class JeopardyGame {
         }
         this.stopTimer();
         this.stopThinkingMusic();
+        this.cleanupVoiceElements();
         this.currentQuestion = null;
     }
 }
