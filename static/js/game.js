@@ -238,6 +238,7 @@ class JeopardyGame {
             clearInterval(this.currentTimer);
             this.currentTimer = null;
         }
+        this.stopThinkingMusic();
     }
 
     updateTimerDisplay() {
@@ -263,6 +264,7 @@ class JeopardyGame {
 
     handleTimerExpired() {
         this.stopTimer();
+        this.stopThinkingMusic();
         this.sounds.timeUp();
         
         // Automatically submit wrong answer
@@ -277,8 +279,23 @@ class JeopardyGame {
             incorrect: this.createTone(300, 0.3),
             hover: this.createTone(600, 0.05),
             buzzer: this.createBuzzer(),
-            timeUp: this.createTimeUpSound()
+            timeUp: this.createTimeUpSound(),
+            thinkingMusic: this.createThinkingMusic()
         };
+        
+        // Set up thinking music audio element
+        this.thinkingMusicAudio = new Audio('/static/sound/theme.mp3');
+        this.thinkingMusicAudio.loop = true;
+        this.thinkingMusicAudio.volume = 0.3; // Set to comfortable background level
+        this.thinkingMusicAudio.preload = 'auto';
+        
+        // Add error handling for audio loading
+        this.thinkingMusicAudio.addEventListener('error', (e) => {
+            console.warn('Error loading thinking music file:', e);
+        });
+        
+        // Track thinking music state
+        this.thinkingMusicPlaying = false;
     }
 
     createTone(frequency, duration) {
@@ -359,6 +376,49 @@ class JeopardyGame {
         };
     }
 
+    createThinkingMusic() {
+        return () => {
+            this.playThinkingMusic();
+        };
+    }
+
+    playThinkingMusic() {
+        if (this.thinkingMusicPlaying) return;
+        
+        try {
+            this.thinkingMusicPlaying = true;
+            
+            // Reset audio to beginning and play
+            this.thinkingMusicAudio.currentTime = 0;
+            
+            // Modern browsers require user interaction before playing audio
+            const playPromise = this.thinkingMusicAudio.play();
+            
+            if (playPromise !== undefined) {
+                playPromise.catch(e => {
+                    console.warn('Could not play thinking music:', e);
+                    this.thinkingMusicPlaying = false;
+                });
+            }
+            
+        } catch (e) {
+            this.thinkingMusicPlaying = false;
+            console.warn('Error playing thinking music:', e);
+        }
+    }
+
+    stopThinkingMusic() {
+        this.thinkingMusicPlaying = false;
+        
+        try {
+            // Pause the audio and reset to beginning
+            this.thinkingMusicAudio.pause();
+            this.thinkingMusicAudio.currentTime = 0;
+        } catch (e) {
+            console.warn('Error stopping thinking music:', e);
+        }
+    }
+
     setupKeyboardNavigation() {
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape' && this.currentQuestion) {
@@ -408,7 +468,7 @@ class JeopardyGame {
     }
 
     calculateTotalQuestions() {
-        this.totalQuestions = this.categories.length * 3; // 3 questions per category
+        this.totalQuestions = this.categories.length * 5; // 5 questions per category
     }
 
     setLoading(loading) {
@@ -775,7 +835,7 @@ class JeopardyGame {
         });
 
         // Render question cells
-        const values = [100, 200, 300];
+        const values = [100, 200, 300, 400, 500];
         values.forEach(value => {
             this.categories.forEach(category => {
                 const cell = document.createElement('div');
@@ -845,9 +905,10 @@ class JeopardyGame {
         // Focus on input after modal is shown and start timer
         setTimeout(() => {
             answerInput.focus();
-            // Play buzzer sound and start timer
+            // Play buzzer sound, start timer, and start thinking music
             this.sounds.buzzer();
             this.startTimer();
+            this.sounds.thinkingMusic();
         }, 300);
     }
 
@@ -857,6 +918,7 @@ class JeopardyGame {
             modal.hide();
         }
         this.stopTimer();
+        this.stopThinkingMusic();
         this.currentQuestion = null;
     }
 }

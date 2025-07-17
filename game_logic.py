@@ -76,17 +76,37 @@ class GameState:
             "History": {
                 100: {"question": "Who was the first President of the United States?", "answer": "George Washington"},
                 200: {"question": "In what year did World War II end?", "answer": "1945"},
-                300: {"question": "What ancient civilization built the pyramids?", "answer": "Egyptians"}
+                300: {"question": "What ancient civilization built the pyramids?", "answer": "Egyptians"},
+                400: {"question": "What year did the American Civil War end?", "answer": "1865"},
+                500: {"question": "Who was the first person to walk on the moon?", "answer": "Neil Armstrong"}
             },
             "Science": {
                 100: {"question": "What is the chemical symbol for gold?", "answer": "Au"},
                 200: {"question": "What planet is known as the Red Planet?", "answer": "Mars"},
-                300: {"question": "What is the largest organ in the human body?", "answer": "Skin"}
+                300: {"question": "What is the largest organ in the human body?", "answer": "Skin"},
+                400: {"question": "What gas do plants absorb from the atmosphere during photosynthesis?", "answer": "Carbon dioxide"},
+                500: {"question": "What is the hardest natural substance on Earth?", "answer": "Diamond"}
             },
             "Literature": {
                 100: {"question": "Who wrote 'Romeo and Juliet'?", "answer": "William Shakespeare"},
                 200: {"question": "What is the name of the wizard school in Harry Potter?", "answer": "Hogwarts"},
-                300: {"question": "Who wrote 'The Great Gatsby'?", "answer": "F. Scott Fitzgerald"}
+                300: {"question": "Who wrote 'The Great Gatsby'?", "answer": "F. Scott Fitzgerald"},
+                400: {"question": "What is the first book in the Lord of the Rings trilogy?", "answer": "The Fellowship of the Ring"},
+                500: {"question": "Who wrote the novel '1984'?", "answer": "George Orwell"}
+            },
+            "Movies": {
+                100: {"question": "What movie features the line 'May the Force be with you'?", "answer": "Star Wars"},
+                200: {"question": "Who directed the movie 'Jaws'?", "answer": "Steven Spielberg"},
+                300: {"question": "What movie won the Academy Award for Best Picture in 1994?", "answer": "Forrest Gump"},
+                400: {"question": "What actor played the Joker in 'The Dark Knight'?", "answer": "Heath Ledger"},
+                500: {"question": "What movie is known for the quote 'Here's looking at you, kid'?", "answer": "Casablanca"}
+            },
+            "Sports": {
+                100: {"question": "How many players are on a basketball team on the court at one time?", "answer": "5"},
+                200: {"question": "What sport is played at Wimbledon?", "answer": "Tennis"},
+                300: {"question": "How many holes are played in a standard round of golf?", "answer": "18"},
+                400: {"question": "What team won the first Super Bowl?", "answer": "Green Bay Packers"},
+                500: {"question": "What country has won the most FIFA World Cups?", "answer": "Brazil"}
             }
         }
 
