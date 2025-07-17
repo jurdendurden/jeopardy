@@ -1,0 +1,108 @@
+body {
+    background-color: #060CE9;
+    color: white;
+    font-family: 'Helvetica Neue', Arial, sans-serif;
+}
+
+.score-display {
+    font-size: 2rem;
+    margin: 20px 0;
+    padding: 10px;
+    background-color: #000080;
+    border-radius: 5px;
+    display: inline-block;
+}
+
+.game-board {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 10px;
+    margin-top: 20px;
+}
+
+.category {
+    background-color: #000080;
+    padding: 15px;
+    text-align: center;
+    font-weight: bold;
+    border-radius: 5px;
+    min-height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.question-cell {
+    background-color: #000080;
+    padding: 15px;
+    text-align: center;
+    cursor: pointer;
+    border-radius: 5px;
+    min-height: 80px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    position: relative;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.question-cell:hover {
+    background-color: #0000CD;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
+}
+
+.question-cell:active,
+.question-cell.pressed {
+    transform: translateY(2px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    background-color: #0000A0;
+}
+
+.question-cell.answered {
+    background-color: #333;
+    cursor: default;
+    box-shadow: none;
+}
+
+.question-cell.answered:hover {
+    transform: none;
+    box-shadow: none;
+    background-color: #333;
+}
+
+.modal-content {
+    background-color: #000080;
+    color: white;
+}
+
+.modal-header {
+    border-bottom: 1px solid #333;
+}
+
+.modal-footer {
+    border-top: 1px solid #333;
+}
+
+.btn-primary {
+    background-color: #0000CD;
+    border-color: #0000CD;
+}
+
+.btn-primary:hover {
+    background-color: #000080;
+    border-color: #000080;
+}
+
+#answerInput {
+    background-color: #333;
+    color: white;
+    border: 1px solid #555;
+}
+
+#answerInput:focus {
+    background-color: #444;
+    color: white;
+    border-color: #666;
+} 
