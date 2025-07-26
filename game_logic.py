@@ -157,6 +157,7 @@ class GameState:
         
         is_correct = answer.lower().strip() == self.current_question["answer"].lower().strip()
         points = self.current_question["value"]
+        correct_answer = self.current_question["answer"]  # Store the correct answer before clearing
         
         if is_correct:
             self.update_player_score(points)
@@ -173,6 +174,7 @@ class GameState:
         
         result = {
             "correct": is_correct,
+            "correct_answer": correct_answer,  # Include the correct answer in the response
             "score": self.score,  # Legacy score for backward compatibility
             "players": self.players,
             "current_player": self.get_current_player(),

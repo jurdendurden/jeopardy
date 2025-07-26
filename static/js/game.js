@@ -979,7 +979,7 @@ class JeopardyGame {
             }
             
             // Show result feedback
-            this.showAnswerFeedback(data.correct, answer, isTimeout);
+            this.showAnswerFeedback(data.correct, answer, data.correct_answer, isTimeout);
             
             // Update game state
             this.score = data.score;
@@ -1013,7 +1013,7 @@ class JeopardyGame {
         }
     }
 
-    showAnswerFeedback(isCorrect, userAnswer, isTimeout = false) {
+    showAnswerFeedback(isCorrect, userAnswer, correctAnswer, isTimeout = false) {
         const feedbackDiv = document.createElement('div');
         feedbackDiv.className = `answer-feedback alert ${isCorrect ? 'alert-success' : 'alert-danger'} mt-3`;
         
@@ -1025,7 +1025,7 @@ class JeopardyGame {
             feedbackContent = `
                 <div class="small">
                     Time ran out before you could answer.<br>
-                    Correct answer: "${this.currentQuestion.answer}"
+                    Correct answer: "${correctAnswer}"
                 </div>
             `;
         } else {
@@ -1033,7 +1033,7 @@ class JeopardyGame {
             feedbackContent = `
                 <div class="small">
                     Your answer: "${userAnswer}"
-                    ${!isCorrect ? `<br>Correct answer: "${this.currentQuestion.answer}"` : ''}
+                    ${!isCorrect ? `<br>Correct answer: "${correctAnswer}"` : ''}
                 </div>
             `;
         }
@@ -1225,6 +1225,7 @@ class JeopardyGame {
         const questionText = document.getElementById('questionText');
         const answerInput = document.getElementById('answerInput');
         const submitBtn = document.getElementById('submitAnswer');
+        const modalElement = document.getElementById('questionModal');
         
         // Reset modal state
         const existingFeedback = document.querySelector('.answer-feedback');
@@ -1249,11 +1250,12 @@ class JeopardyGame {
             questionText.style.opacity = '1';
         }, 100);
         
-        modal.show();
-        
-        // Focus on input after modal is shown and start timer
-        setTimeout(() => {
+        // Set up modal event listener for when it's fully shown
+        const handleModalShown = () => {
+            // Ensure input is ready and focused
+            answerInput.disabled = false;
             answerInput.focus();
+            
             // Play buzzer sound, start timer, and start thinking music
             this.sounds.buzzer();
             this.startTimer();
@@ -1261,7 +1263,22 @@ class JeopardyGame {
             
             // Set up voice button if available
             this.setupVoiceButton();
-        }, 300);
+            
+            // Remove the event listener after it's been called
+            modalElement.removeEventListener('shown.bs.modal', handleModalShown);
+        };
+        
+        // Add event listener for when modal is fully shown
+        modalElement.addEventListener('shown.bs.modal', handleModalShown);
+        
+        modal.show();
+        
+        // Backup focus attempt in case the modal event doesn't fire
+        setTimeout(() => {
+            if (document.activeElement !== answerInput) {
+                answerInput.focus();
+            }
+        }, 400);
     }
 
     hideQuestionModal() {
